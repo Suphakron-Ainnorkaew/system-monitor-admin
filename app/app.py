@@ -303,12 +303,93 @@ def list_data():
 def admin_dashboard():
     try:
         # ดึงข้อมูลทั้งหมดจาก MongoDB
-        if collection:
+        if collection is not None:
             data = list(collection.find({}))
         else:
             # Mock data for demo
             logger.warning("MongoDB not available, using mock data")
-            data = []
+            data = [
+                {
+                    'test_device_type': 'CPU',
+                    'cpu_brand': 'Intel',
+                    'cpu_model': 'i5-13600K',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4070',
+                    'ram_gb': 32,
+                    'test_details': 'AI Model Training Test',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'GPU',
+                    'cpu_brand': 'AMD',
+                    'cpu_model': 'Ryzen 7 5800X',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4080',
+                    'ram_gb': 64,
+                    'test_details': 'Deep Learning Inference',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'CPU',
+                    'cpu_brand': 'Intel',
+                    'cpu_model': 'i7-13700K',
+                    'gpu_brand': 'AMD',
+                    'gpu_model': 'RX 7900 XT',
+                    'ram_gb': 32,
+                    'test_details': 'Data Processing Test',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'GPU',
+                    'cpu_brand': 'Intel',
+                    'cpu_model': 'i9-13900K',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4090',
+                    'ram_gb': 128,
+                    'test_details': 'Large Model Training',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'CPU',
+                    'cpu_brand': 'AMD',
+                    'cpu_model': 'Ryzen 9 7950X',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4070 Ti',
+                    'ram_gb': 64,
+                    'test_details': 'Multi-threaded Processing',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'GPU',
+                    'cpu_brand': 'Intel',
+                    'cpu_model': 'i5-12600K',
+                    'gpu_brand': 'AMD',
+                    'gpu_model': 'RX 7800 XT',
+                    'ram_gb': 32,
+                    'test_details': 'Computer Vision Test',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'CPU',
+                    'cpu_brand': 'Intel',
+                    'cpu_model': 'i5-13600K',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4060',
+                    'ram_gb': 16,
+                    'test_details': 'Basic AI Testing',
+                    'created_at': datetime.now(timezone.utc)
+                },
+                {
+                    'test_device_type': 'GPU',
+                    'cpu_brand': 'AMD',
+                    'cpu_model': 'Ryzen 5 7600X',
+                    'gpu_brand': 'NVIDIA',
+                    'gpu_model': 'RTX 4070',
+                    'ram_gb': 32,
+                    'test_details': 'Neural Network Training',
+                    'created_at': datetime.now(timezone.utc)
+                }
+            ]
         
         if not data:
             return render_template_string(ADMIN_TEMPLATE, 
@@ -434,7 +515,7 @@ def admin_dashboard():
         }
         
         return render_template_string(ADMIN_TEMPLATE,
-            demo_mode=False,
+            demo_mode=(collection is None),
             error_message=None,
             total_tests=total_tests,
             unique_cpus=unique_cpus,
