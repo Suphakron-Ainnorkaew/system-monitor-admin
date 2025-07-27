@@ -45,136 +45,396 @@ ADMIN_TEMPLATE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>System Monitor Admin Dashboard</title>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        * {
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 0;
+            box-sizing: border-box;
         }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            position: relative;
+        }
+        
+        /* Animated background elements */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g"><stop offset="20%" stop-color="%23ffffff" stop-opacity="0.1"/><stop offset="50%" stop-color="%23ffffff" stop-opacity="0.05"/><stop offset="100%" stop-color="%23ffffff" stop-opacity="0"/></radialGradient></defs><circle cx="20" cy="20" r="10" fill="url(%23g)"/><circle cx="80" cy="80" r="15" fill="url(%23g)"/></svg>') repeat;
+            animation: float 20s ease-in-out infinite;
+            pointer-events: none;
+            z-index: -1;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-20px) rotate(180deg); }
+        }
+        
         .container {
-            max-width: 1200px;
+            max-width: 1400px;
             margin: 0 auto;
-            background: white;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            padding: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            padding: 40px;
+            position: relative;
+            overflow: hidden;
         }
-        h1 {
-            color: #333;
+        
+        .container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb, #f5576c);
+            background-size: 300% 300%;
+            animation: gradientShift 3s ease infinite;
+        }
+        
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+        
+        .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 40px;
+            position: relative;
         }
+        
+        .header h1 {
+            font-size: 3rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            position: relative;
+        }
+        
+        .header .subtitle {
+            color: #6b7280;
+            font-size: 1.1rem;
+            font-weight: 500;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .refresh-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .refresh-btn:hover::before {
+            left: 100%;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px -5px rgba(16, 185, 129, 0.4);
+        }
+        
+        .refresh-btn i {
+            margin-right: 8px;
+            transition: transform 0.3s ease;
+        }
+        
+        .refresh-btn:hover i {
+            transform: rotate(180deg);
+        }
+        
+        .demo-notice, .error-notice {
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            font-weight: 600;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .demo-notice {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            color: #92400e;
+            border: 2px solid #f59e0b;
+        }
+        
+        .error-notice {
+            background: linear-gradient(135deg, #fee2e2, #fecaca);
+            color: #991b1b;
+            border: 2px solid #ef4444;
+        }
+        
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 40px;
         }
+        
         .stat-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 20px;
-            border-radius: 10px;
+            padding: 32px;
+            border-radius: 20px;
             text-align: center;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
         }
-        .stat-number {
-            font-size: 2em;
-            font-weight: bold;
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
+            transform: rotate(0deg);
+            transition: transform 0.6s ease;
         }
-        .stat-label {
-            font-size: 0.9em;
+        
+        .stat-card:hover::before {
+            transform: rotate(180deg);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px -12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .stat-icon {
+            font-size: 2.5rem;
+            margin-bottom: 16px;
             opacity: 0.9;
         }
-        .chart-container {
-            margin-bottom: 40px;
+        
+        .stat-number {
+            font-size: 2.8rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+            position: relative;
+            z-index: 1;
         }
-        .chart-title {
-            font-size: 1.5em;
-            color: #333;
-            margin-bottom: 15px;
-            text-align: center;
+        
+        .stat-label {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 500;
+            position: relative;
+            z-index: 1;
         }
+        
         .chart-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 32px;
+            margin-bottom: 40px;
         }
+        
         .chart {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
+        
+        .chart::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 20px 20px 0 0;
+        }
+        
+        .chart:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.15);
+        }
+        
+        .chart-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 24px;
+            text-align: center;
+            position: relative;
+            padding-bottom: 12px;
+        }
+        
+        .chart-title::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 60px;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 2px;
+        }
+        
         .full-width {
             grid-column: 1 / -1;
         }
-        .refresh-btn {
-            background: #4CAF50;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 16px;
-            margin-bottom: 20px;
+        
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #6b7280;
         }
-        .refresh-btn:hover {
-            background: #45a049;
+        
+        .loading i {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
         }
-        .demo-notice {
-            background: #fff3cd;
-            border: 1px solid #ffeaa7;
-            color: #856404;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
-        .error-notice {
-            background: #f8d7da;
-            border: 1px solid #f5c6cb;
-            color: #721c24;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            text-align: center;
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+            
+            .container {
+                padding: 20px;
+                border-radius: 16px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+                gap: 16px;
+            }
+            
+            .stat-card {
+                padding: 24px;
+            }
+            
+            .chart {
+                padding: 20px;
+            }
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(243, 244, 246, 0.5);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a67d8, #6b46c1);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📊 System Monitor Admin Dashboard</h1>
+        <div class="header">
+            <h1><i class="fas fa-chart-line"></i> System Monitor</h1>
+            <p class="subtitle">Real-time Hardware Analytics Dashboard</p>
+        </div>
         
         {% if demo_mode %}
         <div class="demo-notice">
-            🚀 <strong>Demo Mode:</strong> ใช้ข้อมูลจำลอง (Mock Data) สำหรับการทดสอบ
+            <i class="fas fa-rocket"></i> <strong>Demo Mode:</strong> ใช้ข้อมูลจำลอง (Mock Data) สำหรับการทดสอบ
         </div>
         {% endif %}
         
         {% if error_message %}
         <div class="error-notice">
-            ⚠️ <strong>Warning:</strong> {{ error_message }}
+            <i class="fas fa-exclamation-triangle"></i> <strong>Warning:</strong> {{ error_message }}
         </div>
         {% endif %}
         
-        <button class="refresh-btn" onclick="location.reload()">🔄 Refresh Data</button>
+        <button class="refresh-btn" onclick="location.reload()">
+            <i class="fas fa-sync-alt"></i> Refresh Data
+        </button>
         
         <div class="stats-grid">
             <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-vial"></i></div>
                 <div class="stat-number">{{ total_tests }}</div>
                 <div class="stat-label">Total Tests</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-microchip"></i></div>
                 <div class="stat-number">{{ unique_cpus }}</div>
                 <div class="stat-label">Unique CPU Models</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-desktop"></i></div>
                 <div class="stat-number">{{ unique_gpus }}</div>
                 <div class="stat-label">Unique GPU Models</div>
             </div>
             <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-memory"></i></div>
                 <div class="stat-number">{{ avg_ram }} GB</div>
                 <div class="stat-label">Average RAM</div>
             </div>
@@ -182,73 +442,150 @@ ADMIN_TEMPLATE = '''
 
         <div class="chart-grid">
             <div class="chart">
-                <div class="chart-title">📈 CPU Model Usage (Horizontal Bar)</div>
+                <div class="chart-title"><i class="fas fa-chart-bar"></i> CPU Model Usage</div>
                 <div id="cpuChart"></div>
             </div>
             <div class="chart">
-                <div class="chart-title">🎮 GPU Model Usage (Horizontal Bar)</div>
+                <div class="chart-title"><i class="fas fa-gamepad"></i> GPU Model Usage</div>
                 <div id="gpuChart"></div>
             </div>
         </div>
 
         <div class="chart-grid">
             <div class="chart">
-                <div class="chart-title">🍰 RAM Distribution (Pie Chart)</div>
+                <div class="chart-title"><i class="fas fa-chart-pie"></i> RAM Distribution</div>
                 <div id="ramPieChart"></div>
             </div>
             <div class="chart">
-                <div class="chart-title">📊 CPU vs GPU Brand Distribution</div>
+                <div class="chart-title"><i class="fas fa-tags"></i> CPU vs GPU Brand Distribution</div>
                 <div id="brandChart"></div>
             </div>
         </div>
 
         <div class="chart-grid">
             <div class="chart">
-                <div class="chart-title">📊 Test Mode Distribution</div>
+                <div class="chart-title"><i class="fas fa-cogs"></i> Test Mode Distribution</div>
                 <div id="modeChart"></div>
             </div>
             <div class="chart">
-                <div class="chart-title">🏆 Average Scores by Mode</div>
+                <div class="chart-title"><i class="fas fa-trophy"></i> Average Scores by Mode</div>
                 <div id="scoresChart"></div>
             </div>
         </div>
 
         <div class="chart-container">
             <div class="chart full-width">
-                <div class="chart-title">📈 Daily Test Activity (Line Chart)</div>
+                <div class="chart-title"><i class="fas fa-chart-line"></i> Daily Test Activity</div>
                 <div id="dailyChart"></div>
             </div>
         </div>
     </div>
 
     <script>
+        // Enhanced chart configurations with modern styling
+        const chartConfig = {
+            displayModeBar: true,
+            modeBarButtonsToRemove: ['pan2d', 'lasso2d', 'select2d'],
+            displaylogo: false,
+            responsive: true
+        };
+
+        // Modern color palette
+        const colors = {
+            primary: '#667eea',
+            secondary: '#764ba2',
+            accent: '#f093fb',
+            success: '#10b981',
+            warning: '#f59e0b',
+            error: '#ef4444'
+        };
+
+        function updateChartLayout(layout) {
+            return {
+                ...layout,
+                font: { family: 'Inter, sans-serif', size: 12 },
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                margin: { t: 20, r: 20, b: 40, l: 60 }
+            };
+        }
+
         // CPU Chart
         var cpuData = {{ cpu_chart_data | safe }};
-        Plotly.newPlot('cpuChart', cpuData.data, cpuData.layout);
+        if (cpuData.data.length > 0) {
+            cpuData.data[0].marker.color = colors.primary;
+            cpuData.layout = updateChartLayout(cpuData.layout);
+        }
+        Plotly.newPlot('cpuChart', cpuData.data, cpuData.layout, chartConfig);
 
         // GPU Chart
         var gpuData = {{ gpu_chart_data | safe }};
-        Plotly.newPlot('gpuChart', gpuData.data, gpuData.layout);
+        if (gpuData.data.length > 0) {
+            gpuData.data[0].marker.color = colors.secondary;
+            gpuData.layout = updateChartLayout(gpuData.layout);
+        }
+        Plotly.newPlot('gpuChart', gpuData.data, gpuData.layout, chartConfig);
 
         // RAM Pie Chart
         var ramData = {{ ram_pie_data | safe }};
-        Plotly.newPlot('ramPieChart', ramData.data, ramData.layout);
+        if (ramData.data.length > 0) {
+            ramData.data[0].marker = {
+                colors: [colors.primary, colors.secondary, colors.accent, colors.success, colors.warning]
+            };
+            ramData.layout = updateChartLayout(ramData.layout);
+        }
+        Plotly.newPlot('ramPieChart', ramData.data, ramData.layout, chartConfig);
 
         // Brand Chart
         var brandData = {{ brand_chart_data | safe }};
-        Plotly.newPlot('brandChart', brandData.data, brandData.layout);
+        if (brandData.data.length > 0) {
+            brandData.data.forEach((trace, index) => {
+                trace.marker.color = index === 0 ? colors.primary : colors.secondary;
+            });
+            brandData.layout = updateChartLayout(brandData.layout);
+        }
+        Plotly.newPlot('brandChart', brandData.data, brandData.layout, chartConfig);
 
         // Mode Chart
         var modeData = {{ mode_chart_data | safe }};
-        Plotly.newPlot('modeChart', modeData.data, modeData.layout);
+        if (modeData.data.length > 0) {
+            modeData.data[0].marker = {
+                colors: [colors.success, colors.warning, colors.error, colors.accent]
+            };
+            modeData.layout = updateChartLayout(modeData.layout);
+        }
+        Plotly.newPlot('modeChart', modeData.data, modeData.layout, chartConfig);
 
         // Scores Chart
         var scoresData = {{ scores_chart_data | safe }};
-        Plotly.newPlot('scoresChart', scoresData.data, scoresData.layout);
+        if (scoresData.data.length > 0) {
+            scoresData.data[0].marker.color = colors.accent;
+            scoresData.layout = updateChartLayout(scoresData.layout);
+        }
+        Plotly.newPlot('scoresChart', scoresData.data, scoresData.layout, chartConfig);
 
         // Daily Activity Chart
         var dailyData = {{ daily_chart_data | safe }};
-        Plotly.newPlot('dailyChart', dailyData.data, dailyData.layout);
+        if (dailyData.data.length > 0) {
+            dailyData.data[0].line.color = colors.success;
+            dailyData.data[0].marker.color = colors.success;
+            dailyData.layout = updateChartLayout(dailyData.layout);
+        }
+        Plotly.newPlot('dailyChart', dailyData.data, dailyData.layout, chartConfig);
+
+        // Add smooth loading animation
+        document.addEventListener('DOMContentLoaded', function() {
+            const charts = document.querySelectorAll('.chart');
+            charts.forEach((chart, index) => {
+                chart.style.opacity = '0';
+                chart.style.transform = 'translateY(30px)';
+                setTimeout(() => {
+                    chart.style.transition = 'all 0.6s ease';
+                    chart.style.opacity = '1';
+                    chart.style.transform = 'translateY(0)';
+                }, index * 100);
+            });
+        });
     </script>
 </body>
 </html>
