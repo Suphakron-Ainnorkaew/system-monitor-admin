@@ -202,6 +202,17 @@ ADMIN_TEMPLATE = '''
             </div>
         </div>
 
+        <div class="chart-grid">
+            <div class="chart">
+                <div class="chart-title">📊 Test Mode Distribution</div>
+                <div id="modeChart"></div>
+            </div>
+            <div class="chart">
+                <div class="chart-title">🏆 Average Scores by Mode</div>
+                <div id="scoresChart"></div>
+            </div>
+        </div>
+
         <div class="chart-container">
             <div class="chart full-width">
                 <div class="chart-title">📈 Daily Test Activity (Line Chart)</div>
@@ -226,6 +237,14 @@ ADMIN_TEMPLATE = '''
         // Brand Chart
         var brandData = {{ brand_chart_data | safe }};
         Plotly.newPlot('brandChart', brandData.data, brandData.layout);
+
+        // Mode Chart
+        var modeData = {{ mode_chart_data | safe }};
+        Plotly.newPlot('modeChart', modeData.data, modeData.layout);
+
+        // Scores Chart
+        var scoresData = {{ scores_chart_data | safe }};
+        Plotly.newPlot('scoresChart', scoresData.data, scoresData.layout);
 
         // Daily Activity Chart
         var dailyData = {{ daily_chart_data | safe }};
@@ -328,66 +347,6 @@ def admin_dashboard():
                     'ram_gb': 64,
                     'test_details': 'Deep Learning Inference',
                     'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'CPU',
-                    'cpu_brand': 'Intel',
-                    'cpu_model': 'i7-13700K',
-                    'gpu_brand': 'AMD',
-                    'gpu_model': 'RX 7900 XT',
-                    'ram_gb': 32,
-                    'test_details': 'Data Processing Test',
-                    'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'GPU',
-                    'cpu_brand': 'Intel',
-                    'cpu_model': 'i9-13900K',
-                    'gpu_brand': 'NVIDIA',
-                    'gpu_model': 'RTX 4090',
-                    'ram_gb': 128,
-                    'test_details': 'Large Model Training',
-                    'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'CPU',
-                    'cpu_brand': 'AMD',
-                    'cpu_model': 'Ryzen 9 7950X',
-                    'gpu_brand': 'NVIDIA',
-                    'gpu_model': 'RTX 4070 Ti',
-                    'ram_gb': 64,
-                    'test_details': 'Multi-threaded Processing',
-                    'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'GPU',
-                    'cpu_brand': 'Intel',
-                    'cpu_model': 'i5-12600K',
-                    'gpu_brand': 'AMD',
-                    'gpu_model': 'RX 7800 XT',
-                    'ram_gb': 32,
-                    'test_details': 'Computer Vision Test',
-                    'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'CPU',
-                    'cpu_brand': 'Intel',
-                    'cpu_model': 'i5-13600K',
-                    'gpu_brand': 'NVIDIA',
-                    'gpu_model': 'RTX 4060',
-                    'ram_gb': 16,
-                    'test_details': 'Basic AI Testing',
-                    'created_at': datetime.now(timezone.utc)
-                },
-                {
-                    'test_device_type': 'GPU',
-                    'cpu_brand': 'AMD',
-                    'cpu_model': 'Ryzen 5 7600X',
-                    'gpu_brand': 'NVIDIA',
-                    'gpu_model': 'RTX 4070',
-                    'ram_gb': 32,
-                    'test_details': 'Neural Network Training',
-                    'created_at': datetime.now(timezone.utc)
                 }
             ]
         
@@ -405,6 +364,10 @@ def admin_dashboard():
         
         # สร้าง DataFrame
         df = pd.DataFrame(data)
+        
+        # แปลง created_at เป็น datetime ถ้าเป็น string
+        if 'created_at' in df.columns:
+            df['created_at'] = pd.to_datetime(df['created_at'])
         
         # คำนวณสถิติพื้นฐาน
         total_tests = len(df)
@@ -494,7 +457,7 @@ def admin_dashboard():
         }
         
         # 5. Daily Test Activity Line Chart
-        df['date'] = pd.to_datetime(df['created_at']).dt.date
+        df['date'] = df['created_at'].dt.date
         daily_counts = df['date'].value_counts().sort_index()
         
         daily_chart_data = {
@@ -514,6 +477,101 @@ def admin_dashboard():
             }
         }
         
+        # 6. Test Mode Distribution (ถ้ามีข้อมูล)
+        if 'test_details' in df.columns and len(df) > 0:
+            # ดึง mode จาก test_details
+            modes = []
+            for _, row in df.iterrows():
+                if isinstance(row['test_details'], dict) and 'mode' in row['test_details']:
+                    modes.append(row['test_details']['mode'])
+                else:
+                    modes.append('unknown')
+            
+            mode_counts = pd.Series(modes).value_counts()
+            mode_chart_data = {
+                'data': [{
+                    'labels': mode_counts.index.tolist(),
+                    'values': mode_counts.values.tolist(),
+                    'type': 'pie',
+                    'hole': 0.4
+                }],
+                'layout': {
+                    'title': 'Test Mode Distribution',
+                    'height': 400
+                }
+            }
+        else:
+            mode_chart_data = {
+                'data': [{
+                    'labels': ['No mode data'],
+                    'values': [1],
+                    'type': 'pie',
+                    'hole': 0.4
+                }],
+                'layout': {
+                    'title': 'Test Mode Distribution',
+                    'height': 400
+                }
+            }
+        
+        # 7. Average Scores by Mode (ถ้ามีข้อมูล)
+        if 'test_details' in df.columns and len(df) > 0:
+            scores_data = []
+            for _, row in df.iterrows():
+                if isinstance(row['test_details'], dict) and 'avg_score' in row['test_details']:
+                    mode = row['test_details'].get('mode', 'unknown')
+                    score = row['test_details']['avg_score']
+                    scores_data.append({'mode': mode, 'score': score})
+            
+            if scores_data:
+                scores_df = pd.DataFrame(scores_data)
+                avg_scores = scores_df.groupby('mode')['score'].mean()
+                
+                scores_chart_data = {
+                    'data': [{
+                        'x': avg_scores.index.tolist(),
+                        'y': avg_scores.values.tolist(),
+                        'type': 'bar',
+                        'marker': {'color': '#FF6B6B'}
+                    }],
+                    'layout': {
+                        'title': 'Average Scores by Test Mode',
+                        'xaxis': {'title': 'Test Mode'},
+                        'yaxis': {'title': 'Average Score'},
+                        'height': 400
+                    }
+                }
+            else:
+                scores_chart_data = {
+                    'data': [{
+                        'x': ['No data'],
+                        'y': [0],
+                        'type': 'bar',
+                        'marker': {'color': '#FF6B6B'}
+                    }],
+                    'layout': {
+                        'title': 'Average Scores by Test Mode',
+                        'xaxis': {'title': 'Test Mode'},
+                        'yaxis': {'title': 'Average Score'},
+                        'height': 400
+                    }
+                }
+        else:
+            scores_chart_data = {
+                'data': [{
+                    'x': ['No data'],
+                    'y': [0],
+                    'type': 'bar',
+                    'marker': {'color': '#FF6B6B'}
+                }],
+                'layout': {
+                    'title': 'Average Scores by Test Mode',
+                    'xaxis': {'title': 'Test Mode'},
+                    'yaxis': {'title': 'Average Score'},
+                    'height': 400
+                }
+            }
+        
         return render_template_string(ADMIN_TEMPLATE,
             demo_mode=(collection is None),
             error_message=None,
@@ -525,7 +583,9 @@ def admin_dashboard():
             gpu_chart_data=json.dumps(gpu_chart_data),
             ram_pie_data=json.dumps(ram_pie_data),
             brand_chart_data=json.dumps(brand_chart_data),
-            daily_chart_data=json.dumps(daily_chart_data)
+            daily_chart_data=json.dumps(daily_chart_data),
+            mode_chart_data=json.dumps(mode_chart_data),
+            scores_chart_data=json.dumps(scores_chart_data)
         )
         
     except Exception as e:
