@@ -618,7 +618,7 @@ def submit():
         }
 
         # Insert to MongoDB if available
-        if collection:
+        if collection is not None:
             result = collection.insert_one(doc)
             logger.info(f"Successfully inserted document with ID: {result.inserted_id}")
             return jsonify({
@@ -642,7 +642,7 @@ def submit():
 @app.route('/list', methods=['GET'])
 def list_data():
     try:
-        if collection:
+        if collection is not None:
             # ดึงข้อมูลทั้งหมด
             results = list(collection.find({}, {'_id': 0}))
             logger.info(f"Retrieved {len(results)} documents")
@@ -942,7 +942,7 @@ def admin_dashboard():
 def health_check():
     try:
         # Test MongoDB connection if available
-        if collection:
+        if collection is not None:
             client.admin.command('ping')
             return jsonify({'status': 'ok', 'message': 'Service is healthy'})
         else:
