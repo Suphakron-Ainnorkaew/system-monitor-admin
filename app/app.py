@@ -527,8 +527,8 @@ ADMIN_TEMPLATE = '''
 
         <div class="chart-grid">
             <div class="chart full-width">
-                <div class="chart-title"><i class="fas fa-signal"></i> Daily Tests by Device Type</div>
-                <div id="dailyTypeChart"></div>
+                <div class="chart-title"><i class="fas fa-microchip"></i> Top 10 CPUs by Avg Score</div>
+                <div id="topCpuChart"></div>
             </div>
         </div>
 
@@ -658,10 +658,10 @@ ADMIN_TEMPLATE = '''
         comboBarData.layout = updateChartLayout(comboBarData.layout);
         Plotly.newPlot('comboChart', comboBarData.data, comboBarData.layout, chartConfig);
 
-        // Daily by Device Type
-        var dailyByTypeData = {{ daily_by_type_data | safe }};
-        dailyByTypeData.layout = updateChartLayout(dailyByTypeData.layout);
-        Plotly.newPlot('dailyTypeChart', dailyByTypeData.data, dailyByTypeData.layout, chartConfig);
+        // Top 10 CPUs by Avg Score
+        var topCpuData = {{ top_cpu_chart_data | safe }};
+        topCpuData.layout = updateChartLayout(topCpuData.layout);
+        Plotly.newPlot('topCpuChart', topCpuData.data, topCpuData.layout, chartConfig);
 
         // Score Histogram
         var scoreHistData = {{ score_hist_data | safe }};
@@ -1109,24 +1109,34 @@ def admin_dashboard():
             }
         }
 
-        # Daily tests by device type (stacked bar)
-        daily_type = df.groupby(['date', 'test_device_type']).size().unstack(fill_value=0).sort_index()
-        daily_by_type_traces = []
-        for col in daily_type.columns:
-            daily_by_type_traces.append({
-                'x': [str(d) for d in daily_type.index],
-                'y': daily_type[col].tolist(),
+        # Top 10 CPUs by average score (marketing insight: stronger CPU -> better AI performance)
+        cpu_scores = []
+        if 'test_details' in df.columns and len(df) > 0:
+            for _, row in df.iterrows():
+                if isinstance(row['test_details'], dict) and 'avg_score' in row['test_details']:
+                    try:
+                        cpu_scores.append({'cpu_model': row.get('cpu_model', 'Unknown'),
+                                           'avg_score': float(row['test_details']['avg_score'])})
+                    except Exception:
+                        pass
+        if cpu_scores:
+            cpu_scores_df = pd.DataFrame(cpu_scores)
+            top_cpu = cpu_scores_df.groupby('cpu_model')['avg_score'].mean().sort_values(ascending=False).head(10)
+        else:
+            top_cpu = pd.Series([], dtype=float)
+        top_cpu_chart_data = {
+            'data': [{
+                'x': top_cpu.values.tolist()[::-1],
+                'y': top_cpu.index.tolist()[::-1],
                 'type': 'bar',
-                'name': str(col)
-            })
-        daily_by_type_data = {
-            'data': daily_by_type_traces,
+                'orientation': 'h',
+                'marker': {'color': '#10b981'}
+            }],
             'layout': {
-                'title': 'Daily Tests by Device Type',
-                'barmode': 'stack',
-                'xaxis': {'title': 'Date'},
-                'yaxis': {'title': 'Tests'},
-                'height': 420
+                'title': 'Top 10 CPUs by Avg Score',
+                'xaxis': {'title': 'Average Score'},
+                'yaxis': {'title': 'CPU Model'},
+                'height': 450
             }
         }
 
@@ -1168,7 +1178,7 @@ def admin_dashboard():
             ram_tier_pie_data=json.dumps(ram_tier_pie_data),
             brand_heatmap_data=json.dumps(heatmap_data),
             combo_bar_data=json.dumps(combo_bar_data),
-            daily_by_type_data=json.dumps(daily_by_type_data),
+            top_cpu_chart_data=json.dumps(top_cpu_chart_data),
             score_hist_data=json.dumps(score_hist_data)
         )
         
