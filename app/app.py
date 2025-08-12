@@ -440,6 +440,29 @@ ADMIN_TEMPLATE = '''
             </div>
         </div>
 
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-calendar-week"></i></div>
+                <div class="stat-number">{{ tests_last_7d }}</div>
+                <div class="stat-label">Tests (Last 7 Days)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="stat-number">{{ growth_7d_pct }}%</div>
+                <div class="stat-label">7-Day Growth</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-star"></i></div>
+                <div class="stat-number">{{ avg_score_overall }}</div>
+                <div class="stat-label">Avg Score (Overall)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon"><i class="fas fa-tags"></i></div>
+                <div class="stat-number">{{ top_combo_label }}</div>
+                <div class="stat-label">Top CPU+GPU Combo</div>
+            </div>
+        </div>
+
         <div class="chart-grid">
             <div class="chart">
                 <div class="chart-title"><i class="fas fa-chart-bar"></i> CPU Model Usage</div>
@@ -477,6 +500,42 @@ ADMIN_TEMPLATE = '''
             <div class="chart full-width">
                 <div class="chart-title"><i class="fas fa-chart-line"></i> Daily Test Activity</div>
                 <div id="dailyChart"></div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart">
+                <div class="chart-title"><i class="fas fa-bullseye"></i> Device Type Mix</div>
+                <div id="deviceTypeChart"></div>
+            </div>
+            <div class="chart">
+                <div class="chart-title"><i class="fas fa-layer-group"></i> RAM Tier Distribution</div>
+                <div id="ramTierChart"></div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart">
+                <div class="chart-title"><i class="fas fa-project-diagram"></i> CPU vs GPU Brand Heatmap</div>
+                <div id="brandHeatmap"></div>
+            </div>
+            <div class="chart">
+                <div class="chart-title"><i class="fas fa-list-ol"></i> Top CPU+GPU Combos</div>
+                <div id="comboChart"></div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart full-width">
+                <div class="chart-title"><i class="fas fa-signal"></i> Daily Tests by Device Type</div>
+                <div id="dailyTypeChart"></div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="chart full-width">
+                <div class="chart-title"><i class="fas fa-sliders-h"></i> Score Distribution</div>
+                <div id="scoreHist"></div>
             </div>
         </div>
     </div>
@@ -572,6 +631,42 @@ ADMIN_TEMPLATE = '''
             dailyData.layout = updateChartLayout(dailyData.layout);
         }
         Plotly.newPlot('dailyChart', dailyData.data, dailyData.layout, chartConfig);
+
+        // Device Type Mix
+        var deviceTypeData = {{ device_type_chart_data | safe }};
+        if (deviceTypeData.data.length > 0) {
+            deviceTypeData.data[0].marker = { colors: [colors.primary, colors.secondary, colors.accent] };
+            deviceTypeData.layout = updateChartLayout(deviceTypeData.layout);
+        }
+        Plotly.newPlot('deviceTypeChart', deviceTypeData.data, deviceTypeData.layout, chartConfig);
+
+        // RAM Tier Distribution
+        var ramTierData = {{ ram_tier_pie_data | safe }};
+        if (ramTierData.data.length > 0) {
+            ramTierData.data[0].marker = { colors: [colors.warning, colors.primary, colors.secondary, colors.accent, colors.success] };
+            ramTierData.layout = updateChartLayout(ramTierData.layout);
+        }
+        Plotly.newPlot('ramTierChart', ramTierData.data, ramTierData.layout, chartConfig);
+
+        // Brand Heatmap
+        var brandHeatmapData = {{ brand_heatmap_data | safe }};
+        brandHeatmapData.layout = updateChartLayout(brandHeatmapData.layout);
+        Plotly.newPlot('brandHeatmap', brandHeatmapData.data, brandHeatmapData.layout, chartConfig);
+
+        // Top Combos
+        var comboBarData = {{ combo_bar_data | safe }};
+        comboBarData.layout = updateChartLayout(comboBarData.layout);
+        Plotly.newPlot('comboChart', comboBarData.data, comboBarData.layout, chartConfig);
+
+        // Daily by Device Type
+        var dailyByTypeData = {{ daily_by_type_data | safe }};
+        dailyByTypeData.layout = updateChartLayout(dailyByTypeData.layout);
+        Plotly.newPlot('dailyTypeChart', dailyByTypeData.data, dailyByTypeData.layout, chartConfig);
+
+        // Score Histogram
+        var scoreHistData = {{ score_hist_data | safe }};
+        scoreHistData.layout = updateChartLayout(scoreHistData.layout);
+        Plotly.newPlot('scoreHist', scoreHistData.data, scoreHistData.layout, chartConfig);
 
         // Add smooth loading animation
         document.addEventListener('DOMContentLoaded', function() {
@@ -908,6 +1003,148 @@ def admin_dashboard():
                     'height': 400
                 }
             }
+
+        # 8. Marketing/Business insights
+        # Time window based on data timeline to avoid tz issues
+        now_ts = pd.to_datetime(df['created_at']).max()
+        last_7_start = now_ts - pd.Timedelta(days=7) if pd.notna(now_ts) else None
+        prev_7_start = now_ts - pd.Timedelta(days=14) if pd.notna(now_ts) else None
+        if last_7_start is not None:
+            last_7_df = df[df['created_at'] > last_7_start]
+            prev_7_df = df[(df['created_at'] > prev_7_start) & (df['created_at'] <= last_7_start)] if prev_7_start is not None else df.iloc[0:0]
+            tests_last_7d = int(len(last_7_df))
+            prev_cnt = int(len(prev_7_df))
+            growth_7d_pct = round(((tests_last_7d - prev_cnt) / (prev_cnt if prev_cnt > 0 else 1)) * 100.0, 1)
+        else:
+            tests_last_7d = 0
+            growth_7d_pct = 0.0
+
+        # Avg score overall
+        overall_scores = []
+        if 'test_details' in df.columns and len(df) > 0:
+            for _, row in df.iterrows():
+                if isinstance(row['test_details'], dict) and 'avg_score' in row['test_details']:
+                    try:
+                        overall_scores.append(float(row['test_details']['avg_score']))
+                    except Exception:
+                        pass
+        avg_score_overall = round(sum(overall_scores) / len(overall_scores), 1) if overall_scores else 0
+
+        # Top CPU+GPU combo
+        combo_series = (df['cpu_model'].fillna('Unknown CPU') + ' + ' + df['gpu_model'].fillna('Unknown GPU'))
+        combo_counts = combo_series.value_counts()
+        if not combo_counts.empty:
+            top_combo_label = f"{combo_counts.index[0]}"
+        else:
+            top_combo_label = 'N/A'
+
+        # Device type mix (pie)
+        device_counts = df['test_device_type'].fillna('unknown').value_counts()
+        device_type_chart_data = {
+            'data': [{
+                'labels': device_counts.index.tolist(),
+                'values': device_counts.values.tolist(),
+                'type': 'pie',
+                'hole': 0.35
+            }],
+            'layout': {
+                'title': 'Device Type Mix',
+                'height': 400
+            }
+        }
+
+        # RAM Tiers
+        try:
+            ram_tiers = pd.cut(df['ram_gb'].astype(float),
+                               bins=[0, 8, 16, 32, 64, float('inf')],
+                               labels=['<=8 GB', '9-16 GB', '17-32 GB', '33-64 GB', '65+ GB'],
+                               include_lowest=True)
+            ram_tier_counts = ram_tiers.value_counts().reindex(['<=8 GB', '9-16 GB', '17-32 GB', '33-64 GB', '65+ GB']).fillna(0)
+        except Exception:
+            ram_tier_counts = pd.Series([], dtype=int)
+        ram_tier_pie_data = {
+            'data': [{
+                'labels': ram_tier_counts.index.astype(str).tolist(),
+                'values': ram_tier_counts.values.tolist(),
+                'type': 'pie',
+                'hole': 0.35
+            }],
+            'layout': {
+                'title': 'RAM Tier Distribution',
+                'height': 400
+            }
+        }
+
+        # CPU vs GPU Brand Heatmap
+        brand_matrix = df.pivot_table(index='cpu_brand', columns='gpu_brand', values='test_device_type', aggfunc='count', fill_value=0)
+        heatmap_data = {
+            'data': [{
+                'z': brand_matrix.values.tolist(),
+                'x': brand_matrix.columns.astype(str).tolist(),
+                'y': brand_matrix.index.astype(str).tolist(),
+                'type': 'heatmap',
+                'colorscale': 'Blues'
+            }],
+            'layout': {
+                'title': 'CPU vs GPU Brand Heatmap',
+                'height': 400
+            }
+        }
+
+        # Top CPU+GPU combos (bar)
+        top_combos = combo_counts.head(10)
+        combo_bar_data = {
+            'data': [{
+                'x': top_combos.values.tolist(),
+                'y': top_combos.index.tolist(),
+                'type': 'bar',
+                'orientation': 'h',
+                'marker': {'color': '#546de5'}
+            }],
+            'layout': {
+                'title': 'Top CPU+GPU Combos',
+                'xaxis': {'title': 'Count'},
+                'yaxis': {'title': 'CPU + GPU'},
+                'height': 400
+            }
+        }
+
+        # Daily tests by device type (stacked bar)
+        daily_type = df.groupby(['date', 'test_device_type']).size().unstack(fill_value=0).sort_index()
+        daily_by_type_traces = []
+        for col in daily_type.columns:
+            daily_by_type_traces.append({
+                'x': [str(d) for d in daily_type.index],
+                'y': daily_type[col].tolist(),
+                'type': 'bar',
+                'name': str(col)
+            })
+        daily_by_type_data = {
+            'data': daily_by_type_traces,
+            'layout': {
+                'title': 'Daily Tests by Device Type',
+                'barmode': 'stack',
+                'xaxis': {'title': 'Date'},
+                'yaxis': {'title': 'Tests'},
+                'height': 420
+            }
+        }
+
+        # Score histogram
+        score_values = overall_scores
+        score_hist_data = {
+            'data': [{
+                'x': score_values,
+                'type': 'histogram',
+                'marker': {'color': '#f093fb'}
+            }],
+            'layout': {
+                'title': 'Score Distribution',
+                'xaxis': {'title': 'Avg Score'},
+                'yaxis': {'title': 'Frequency'},
+                'height': 400
+            }
+        }
         
         return render_template_string(ADMIN_TEMPLATE,
             demo_mode=(collection is None),
@@ -916,13 +1153,23 @@ def admin_dashboard():
             unique_cpus=unique_cpus,
             unique_gpus=unique_gpus,
             avg_ram=avg_ram,
+            tests_last_7d=tests_last_7d,
+            growth_7d_pct=growth_7d_pct,
+            avg_score_overall=avg_score_overall,
+            top_combo_label=top_combo_label,
             cpu_chart_data=json.dumps(cpu_chart_data),
             gpu_chart_data=json.dumps(gpu_chart_data),
             ram_pie_data=json.dumps(ram_pie_data),
             brand_chart_data=json.dumps(brand_chart_data),
             daily_chart_data=json.dumps(daily_chart_data),
             mode_chart_data=json.dumps(mode_chart_data),
-            scores_chart_data=json.dumps(scores_chart_data)
+            scores_chart_data=json.dumps(scores_chart_data),
+            device_type_chart_data=json.dumps(device_type_chart_data),
+            ram_tier_pie_data=json.dumps(ram_tier_pie_data),
+            brand_heatmap_data=json.dumps(heatmap_data),
+            combo_bar_data=json.dumps(combo_bar_data),
+            daily_by_type_data=json.dumps(daily_by_type_data),
+            score_hist_data=json.dumps(score_hist_data)
         )
         
     except Exception as e:
